@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>결!합! - 지니어스 게임</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    color: #f5f5f5; user-select: none; touch-action: manipulation;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+
+  /* ===== 시작 화면 ===== */
+  #screen-start {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2vmin; padding: 4vmin;
+    overflow-y: auto;
+  }
+  #screen-start h1 {
+    font-size: 12vmin; font-weight: 900; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(255,107,107,0.3);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+  #screen-start p.subtitle { font-size: 2.5vmin; color: #a0a0c0; margin-bottom: 3vmin; }
+  .option-group {
+    display: flex; flex-direction: column; align-items: center; gap: 1vmin;
+    background: rgba(255,255,255,0.05); padding: 2vmin 4vmin; border-radius: 2vmin;
+    backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+    min-width: 60vmin;
+  }
+  .option-label { font-size: 2vmin; color: #c0c0e0; margin-bottom: 0.5vmin; }
+  .btn-row { display: flex; gap: 1.5vmin; flex-wrap: wrap; justify-content: center; }
+  .opt-btn {
+    background: rgba(255,255,255,0.08); color: #fff; border: 2px solid transparent;
+    padding: 1.5vmin 3vmin; border-radius: 1.5vmin; font-size: 2.2vmin; font-weight: 600;
+    transition: all 0.2s; min-width: 10vmin;
+  }
+  .opt-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+  .opt-btn.active {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+    border-color: #fff; box-shadow: 0 0 20px rgba(255,107,107,0.5);
+  }
+  #start-btn {
+    margin-top: 3vmin; padding: 2.5vmin 8vmin; font-size: 3.5vmin; font-weight: 900;
+    background: linear-gradient(135deg, #feca57, #ff6b6b);
+    color: #1a1a2e; border-radius: 2vmin;
+    box-shadow: 0 8px 30px rgba(255,107,107,0.4);
+    transition: all 0.2s;
+  }
+  #start-btn:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 12px 40px rgba(255,107,107,0.6); }
+
+  /* ===== 게임 화면 ===== */
+  #screen-game { position: fixed; inset: 0; display: none; flex-direction: column; }
+  #game-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1vmin 2vmin; background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10;
+  }
+  #timer-display {
+    font-size: 4vmin; font-weight: 900; font-variant-numeric: tabular-nums;
+    padding: 0.5vmin 2vmin; border-radius: 1vmin;
+    background: rgba(255,255,255,0.1);
+  }
+  #timer-display.warning { color: #feca57; animation: blink 0.5s infinite; }
+  #timer-display.danger { color: #ff6b6b; animation: blink 0.3s infinite; }
+  @keyframes blink { 50% { opacity: 0.5; } }
+  #mode-display { font-size: 2.5vmin; font-weight: 700; color: #feca57; }
+  #quit-btn {
+    background: rgba(255,107,107,0.2); color: #ff6b6b; padding: 1vmin 2vmin;
+    border-radius: 1vmin; font-size: 2vmin; font-weight: 600;
+  }
+
+  #teams-container {
+    flex: 1; display: grid; gap: 2px; background: rgba(255,255,255,0.1);
+    overflow: hidden;
+  }
+  .team-panel {
+    background: linear-gradient(180deg, rgba(20,15,45,0.8), rgba(40,30,70,0.8));
+    display: flex; flex-direction: column; padding: 1.5vmin; overflow: hidden;
+    position: relative;
+  }
+  .team-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1vmin 1.5vmin; background: rgba(0,0,0,0.3);
+    border-radius: 1vmin; margin-bottom: 1vmin; flex-shrink: 0;
+  }
+  .team-name { font-size: 2.8vmin; font-weight: 800; }
+  .team-score {
+    font-size: 3.5vmin; font-weight: 900; font-variant-numeric: tabular-nums;
+    color: #feca57; text-shadow: 0 0 10px rgba(254,202,87,0.5);
+    transition: transform 0.3s;
+  }
+  .team-score.pop { transform: scale(1.4); }
+
+  /* Body split into board and info vertically */
+  .team-body {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; gap: 1vmin;
+  }
+  
+  /* Reverse layout when board is moved down */
+  .team-body.reverse .board-wrapper { order: 2; }
+  .team-body.reverse .info-wrapper { order: 1; }
+  
+  /* Keep board square */
+  .board-wrapper {
+    flex: 1; display: flex; justify-content: center; align-items: center; 
+    overflow: hidden; position: relative;
+    transition: all 0.3s ease;
+  }
+  .board {
+    display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+    gap: 1.2vmin; 
+    width: 100%; max-width: 50vh; aspect-ratio: 1; /* Forced to be square */
+    margin: 0 auto;
+    transition: transform 0.2s ease; /* For size scaling and position */
+  }
+
+  .card {
+    position: relative; border-radius: 1.5vmin; overflow: hidden;
+    cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    border: 3px solid transparent; background: #000;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.6); }
+  .card.selected {
+    border-color: #feca57;
+    box-shadow: 0 0 30px rgba(254,202,87,0.8), inset 0 0 20px rgba(254,202,87,0.3);
+    transform: scale(1.05);
+  }
+  .card.correct-flash { animation: correctFlash 0.6s ease-out; }
+  @keyframes correctFlash {
+    0%   { box-shadow: 0 0 0 0 rgba(72,219,251,0.8); transform: scale(1.05); }
+    50%  { box-shadow: 0 0 40px 15px rgba(72,219,251,0.8); transform: scale(1.1); }
+    100% { box-shadow: 0 0 0 0 rgba(72,219,251,0); transform: scale(1.05); }
+  }
+  .card.wrong-flash { animation: wrongShake 0.5s; }
+  @keyframes wrongShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+  }
+  .card svg { width: 100%; height: 100%; display: block; }
+  .ripple {
+    position: absolute; border-radius: 50%;
+    background: rgba(255,255,255,0.6); transform: scale(0);
+    animation: rippleAnim 0.6s linear; pointer-events: none;
+  }
+  @keyframes rippleAnim {
+    to { transform: scale(4); opacity: 0; }
+  }
+
+  .info-wrapper {
+    display: flex; flex-direction: column; gap: 1vmin; 
+    overflow: hidden; max-height: 40vh; /* Starts small, grows up to 40vh */
+  }
+  .gyeol-btn {
+    padding: 1.5vmin; font-size: 2.5vmin; font-weight: 900;
+    background: linear-gradient(135deg, #ff6b6b, #c0392b);
+    color: #fff; border-radius: 1.2vmin; flex-shrink: 0;
+    box-shadow: 0 4px 15px rgba(255,107,107,0.4);
+    letter-spacing: 0.1em; transition: all 0.15s;
+  }
+  .gyeol-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,107,107,0.6); }
+  
+  .found-label { font-size: 1.8vmin; color: #a0a0c0; font-weight: 600; flex-shrink: 0; }
+  
+  .found-list {
+    overflow-y: auto; padding: 1vmin; background: rgba(0,0,0,0.25); border-radius: 1vmin;
+    display: flex; flex-wrap: wrap; align-content: flex-start; gap: 1.5vmin 1vmin;
+    min-height: 6vmin; /* Just enough for one row initially */
+  }
+  .found-list::-webkit-scrollbar { width: 6px; }
+  .found-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+  
+  .found-set { 
+    display: flex; gap: 0.5vmin; background: rgba(255,255,255,0.1); padding: 0.5vmin; border-radius: 0.8vmin;
+  }
+  .found-set .mini-card {
+    width: 3.5vmin; height: 3.5vmin; border-radius: 0.5vmin; overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3); background: #000;
+    animation: foundPop 0.4s ease-out;
+  }
+  @keyframes foundPop {
+    0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+  .found-set .mini-card svg { width: 100%; height: 100%; }
+
+  /* Sliders (Controls at the very bottom) */
+  .team-controls {
+    display: flex; flex-direction: column; gap: 0.5vmin; padding-top: 1vmin;
+    border-top: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;
+  }
+  .control-row {
+    display: flex; align-items: center; justify-content: space-between; font-size: 1.8vmin; color: #c0c0c0;
+  }
+  .control-row input[type=range] {
+    flex: 1; margin-left: 1vmin; height: 0.8vmin; appearance: none; background: rgba(255,255,255,0.2);
+    border-radius: 0.4vmin; outline: none;
+  }
+  .control-row input[type=range]::-webkit-slider-thumb {
+    appearance: none; width: 2.5vmin; height: 2.5vmin; border-radius: 50%;
+    background: #feca57; cursor: pointer; box-shadow: 0 0 10px rgba(254,202,87,0.5);
+  }
+
+  /* 구분선 (팀 사이) */
+  .team-panel:not(:last-child)::after {
+    content: ''; position: absolute; right: -1px; top: 5%; bottom: 5%;
+    width: 2px; background: linear-gradient(180deg, transparent, rgba(255,255,255,0.3), transparent);
+  }
+
+  /* ===== 결과 화면 ===== */
+  #screen-result {
+    position: fixed; inset: 0; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2vmin;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(20px); z-index: 100;
+  }
+  #screen-result h2 {
+    font-size: 8vmin; font-weight: 900;
+    background: linear-gradient(135deg, #feca57, #ff6b6b);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .result-list {
+    display: flex; flex-direction: column; gap: 1.5vmin;
+    min-width: 50vmin; max-width: 80vmin;
+  }
+  .result-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2vmin 3vmin; background: rgba(255,255,255,0.1);
+    border-radius: 1.5vmin; font-size: 3vmin; font-weight: 700;
+    border-left: 6px solid transparent;
+  }
+  .result-row.rank-1 { border-left-color: #feca57; background: rgba(254,202,87,0.2); }
+  .result-row.rank-2 { border-left-color: #c0c0c0; }
+  .result-row.rank-3 { border-left-color: #cd7f32; }
+  .result-row .rank { font-size: 4vmin; font-weight: 900; color: #feca57; }
+  .result-row .score { color: #feca57; font-variant-numeric: tabular-nums; }
+  .result-buttons { display: flex; gap: 2vmin; margin-top: 3vmin; }
+  .result-buttons button {
+    padding: 2vmin 4vmin; font-size: 2.5vmin; font-weight: 700;
+    border-radius: 1.5vmin; transition: all 0.2s;
+  }
+  #again-btn { background: linear-gradient(135deg, #48dbfb, #0abde3); color: #fff; }
+  #home-btn { background: rgba(255,255,255,0.1); color: #fff; }
+
+  /* ===== 커스텀 모달 ===== */
+  #custom-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+    display: none; align-items: center; justify-content: center; z-index: 300;
+  }
+  #custom-modal {
+    background: linear-gradient(135deg, #1a1a2e, #16213e); border: 2px solid rgba(255,255,255,0.1);
+    padding: 4vmin 6vmin; border-radius: 2vmin; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    display: flex; flex-direction: column; gap: 3vmin; min-width: 40vmin;
+    animation: modalPop 0.3s ease-out;
+  }
+  @keyframes modalPop {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  #modal-text { font-size: 3vmin; font-weight: 700; }
+  .modal-btns { display: flex; gap: 2vmin; justify-content: center; }
+  .modal-btns button {
+    padding: 1.5vmin 4vmin; font-size: 2.5vmin; border-radius: 1vmin; font-weight: 700;
+  }
+  #modal-ok { background: #ff6b6b; color: #fff; }
+  #modal-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+
+
+  /* 토스트 / 팝업 */
+  .toast {
+    position: fixed; left: 50%; top: 20%; transform: translateX(-50%);
+    padding: 2vmin 4vmin; background: rgba(0,0,0,0.9); border-radius: 1.5vmin;
+    font-size: 3vmin; font-weight: 800; z-index: 200;
+    animation: toastFade 1.5s ease-out forwards; pointer-events: none;
+  }
+  .toast.success { color: #48dbfb; border: 2px solid #48dbfb; }
+  .toast.fail { color: #ff6b6b; border: 2px solid #ff6b6b; }
+  .toast.big-success { color: #feca57; border: 3px solid #feca57; font-size: 5vmin; }
+  @keyframes toastFade {
+    0% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.8); }
+    20%, 80% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.9); }
+  }
+
+  .score-popup {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-size: 8vmin; font-weight: 900; pointer-events: none; z-index: 50;
+    animation: scorePopupAnim 1.2s ease-out forwards;
+  }
+  .score-popup.plus { color: #48dbfb; text-shadow: 0 0 20px #48dbfb; }
+  .score-popup.minus { color: #ff6b6b; text-shadow: 0 0 20px #ff6b6b; }
+  @keyframes scorePopupAnim {
+    0% { opacity: 0; transform: translate(-50%, -20%) scale(0.5); }
+    30% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+    70% { opacity: 1; transform: translate(-50%, -80%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -120%) scale(0.8); }
+  }
+</style>
+</head>
+<body>
+
+<!-- 시작 화면 -->
+<div id="screen-start">
+  <h1>결!합!</h1>
+  <p class="subtitle">속성이 모두 같거나 모두 다른 3장을 찾아라!</p>
+
+  <div class="option-group">
+    <div class="option-label">인원 선택</div>
+    <div class="btn-row" id="player-buttons">
+      <button class="opt-btn" data-val="1">1인</button>
+      <button class="opt-btn" data-val="2">2인</button>
+      <button class="opt-btn" data-val="3">3인</button>
+      <button class="opt-btn" data-val="4">4인</button>
+      <button class="opt-btn" data-val="5">5인</button>
+    </div>
+  </div>
+
+  <div class="option-group">
+    <div class="option-label">모드 선택</div>
+    <div class="btn-row" id="mode-buttons">
+      <button class="opt-btn" data-val="hap">합! (쉬움)</button>
+      <button class="opt-btn" data-val="gyeolhap">결!합! (어려움)</button>
+    </div>
+  </div>
+
+  <div class="option-group">
+    <div class="option-label">제한 시간</div>
+    <div class="btn-row" id="time-buttons">
+      <button class="opt-btn" data-val="60">1분</button>
+      <button class="opt-btn" data-val="180">3분</button>
+      <button class="opt-btn" data-val="300">5분</button>
+      <button class="opt-btn" data-val="600">10분</button>
+    </div>
+  </div>
+
+  <button id="start-btn">게 임 시 작</button>
+</div>
+
+<!-- 게임 화면 -->
+<div id="screen-game">
+  <div id="game-header">
+    <div id="mode-display">모드</div>
+    <div id="timer-display">05:00</div>
+    <button id="quit-btn">그만두기</button>
+  </div>
+  <div id="teams-container"></div>
+</div>
+
+<!-- 결과 화면 -->
+<div id="screen-result">
+  <h2>🏆 게임 종료 🏆</h2>
+  <div class="result-list" id="result-list"></div>
+  <div class="result-buttons">
+    <button id="again-btn">다시 하기</button>
+    <button id="home-btn">처음으로</button>
+  </div>
+</div>
+
+<!-- 모달 오버레이 -->
+<div id="custom-modal-overlay">
+  <div id="custom-modal">
+    <div id="modal-text">게임을 종료하시겠습니까?</div>
+    <div class="modal-btns">
+      <button id="modal-ok">예</button>
+      <button id="modal-cancel">아니오</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================
+   결!합! 게임 로직 (Vanilla JS, single file)
+   ===================================================== */
+
+const SHAPES = ['circle', 'triangle', 'square'];
+const BG_COLORS = ['#1a1a1a', '#888888', '#f0f0f0']; // 검정, 회색, 하양
+const FG_COLORS = ['#e74c3c', '#f1c40f', '#3498db']; // 빨강, 노랑, 파랑
+
+function generateAllCards() {
+  const cards = [];
+  for (let s = 0; s < 3; s++)
+    for (let b = 0; b < 3; b++)
+      for (let f = 0; f < 3; f++)
+        cards.push({ shape: s, bg: b, fg: f });
+  return cards;
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function isValidSet(a, b, c) {
+  for (const attr of ['shape', 'bg', 'fg']) {
+    const s = new Set([a[attr], b[attr], c[attr]]);
+    if (s.size === 2) return false;
+  }
+  return true;
+}
+
+function findAllSets(board) {
+  const sets = [];
+  for (let i = 0; i < board.length; i++)
+    for (let j = i + 1; j < board.length; j++)
+      for (let k = j + 1; k < board.length; k++)
+        if (isValidSet(board[i], board[j], board[k]))
+          sets.push([i, j, k]);
+  return sets;
+}
+
+function cardSVG(card) {
+  const bg = BG_COLORS[card.bg];
+  const fg = FG_COLORS[card.fg];
+  const stroke = card.bg === 2 ? '#cccccc' : 'transparent';
+  let shape = '';
+  if (card.shape === 0) {
+    shape = `<circle cx="50" cy="50" r="28" fill="${fg}"/>`;
+  } else if (card.shape === 1) {
+    shape = `<polygon points="50,20 80,78 20,78" fill="${fg}"/>`;
+  } else {
+    shape = `<rect x="22" y="22" width="56" height="56" fill="${fg}" rx="3"/>`;
+  }
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+    <rect width="100" height="100" fill="${bg}" stroke="${stroke}" stroke-width="1"/>
+    ${shape}
+  </svg>`;
+}
+
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { audioCtx = null; }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playTone(freq, duration, type = 'sine', vol = 0.25, delay = 0) {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime + delay;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(vol, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0 + duration + 0.05);
+}
+function sfxTap() { playTone(700, 0.06, 'square', 0.12); }
+function sfxCorrect() {
+  playTone(523, 0.12, 'sine', 0.25, 0);
+  playTone(659, 0.12, 'sine', 0.25, 0.1);
+  playTone(784, 0.25, 'sine', 0.25, 0.2);
+}
+function sfxWrong() {
+  playTone(220, 0.15, 'sawtooth', 0.2, 0);
+  playTone(165, 0.25, 'sawtooth', 0.2, 0.15);
+}
+function sfxFanfare() {
+  [523, 659, 784, 1047, 1319].forEach((f, i) => {
+    playTone(f, 0.18, 'triangle', 0.28, i * 0.09);
+  });
+}
+function sfxTick() { playTone(1000, 0.05, 'square', 0.1); }
+function sfxEnd() {
+  playTone(440, 0.2, 'sine', 0.25, 0);
+  playTone(330, 0.2, 'sine', 0.25, 0.18);
+  playTone(220,  0.4, 'sine', 0.25, 0.36);
+}
+
+class Team {
+  constructor(id, name, mode) {
+    this.id = id;
+    this.name = name;
+    this.mode = mode;
+    this.score = 0;
+    this.deck = shuffle(generateAllCards());
+    this.board = this.deck.splice(0, 9);
+    this.selected = [];
+    this.foundSets = [];
+    this.el = null;
+    this.locked = false;
+    this.tableScale = 1;
+    this.tableY = 0;
+    
+    // Hap 모드 무조건 정답이 있도록 강제
+    if(this.mode === 'hap') this.ensureSetExists();
+  }
+
+  ensureSetExists() {
+    let sets = findAllSets(this.board);
+    if(sets.length > 0) return;
+    
+    // 조합이 없으면 합모드에서는 다시 섞어야 함
+    let allRemaining = this.board.concat(this.deck);
+    let tries = 0;
+    while(tries < 100) {
+      allRemaining = shuffle(allRemaining);
+      let tempBoard = allRemaining.slice(0, 9);
+      if(findAllSets(tempBoard).length > 0) {
+        this.board = tempBoard;
+        this.deck = allRemaining.slice(9);
+        break;
+      }
+      tries++;
+    }
+  }
+
+  boardSignature() {
+    return this.board.map(c => `${c.shape}${c.bg}${c.fg}`).sort().join('|');
+  }
+
+  drawReplacement() {
+    if (this.deck.length === 0) {
+      const all = generateAllCards();
+      const onBoard = new Set(this.board.map(c => `${c.shape}${c.bg}${c.fg}`));
+      this.deck = shuffle(all.filter(c => !onBoard.has(`${c.shape}${c.bg}${c.fg}`)));
+    }
+    return this.deck.shift();
+  }
+
+  replaceCards(indices) {
+    indices.forEach(i => { this.board[i] = this.drawReplacement(); });
+    if(this.mode === 'hap') this.ensureSetExists();
+  }
+
+  refreshBoard() {
+    const all = generateAllCards();
+    this.deck = shuffle(all);
+    this.board = this.deck.splice(0, 9);
+    if(this.mode === 'hap') this.ensureSetExists();
+    this.foundSets = [];
+    this.selected = [];
+  }
+
+  setKey(cards) {
+    return cards.map(c => `${c.shape}${c.bg}${c.fg}`).sort().join('|');
+  }
+
+  alreadyFound(cards) {
+    return this.foundSets.some(s => s.key === this.setKey(cards));
+  }
+}
+
+const game = {
+  players: null, mode: null, timeLimit: null,
+  teams: [], timerId: null, remaining: 0, running: false
+};
+
+function setupOptionButtons(groupId, onPick) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.opt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ensureAudio();
+      sfxTap();
+      group.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      onPick(btn.dataset.val);
+    });
+  });
+}
+setupOptionButtons('player-buttons', v => game.players = parseInt(v));
+setupOptionButtons('mode-buttons', v => game.mode = v);
+setupOptionButtons('time-buttons', v => game.timeLimit = parseInt(v));
+
+document.querySelector('#player-buttons .opt-btn[data-val="1"]').click();
+document.querySelector('#mode-buttons .opt-btn[data-val="gyeolhap"]').click();
+document.querySelector('#time-buttons .opt-btn[data-val="300"]').click();
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  ensureAudio();
+  sfxTap();
+  if (!game.players || !game.mode || !game.timeLimit) {
+    showToast('옵션을 모두 선택해 주세요!', 'fail');
+    return;
+  }
+  startGame();
+});
+
+function startGame() {
+  game.teams = [];
+  const sigs = new Set();
+  for (let i = 0; i < game.players; i++) {
+    let t, tries = 0;
+    do {
+      t = new Team(i, game.players === 1 ? '나' : `팀 ${i + 1}`, game.mode);
+      tries++;
+    } while (sigs.has(t.boardSignature()) && tries < 10);
+    sigs.add(t.boardSignature());
+    game.teams.push(t);
+  }
+
+  document.getElementById('screen-start').style.display = 'none';
+  document.getElementById('screen-result').style.display = 'none';
+  document.getElementById('screen-game').style.display = 'flex';
+
+  document.getElementById('mode-display').textContent =
+    game.mode === 'hap' ? '🟢 합! 모드' : '🔴 결!합! 모드';
+
+  renderTeams();
+  startTimer();
+  game.running = true;
+}
+
+function updateTeamStyle(team) {
+  const boardEl = team.el.querySelector('.board');
+  const bodyEl = team.el.querySelector('.team-body');
+  
+  boardEl.style.transform = `translateY(${team.tableY}%) scale(${team.tableScale})`;
+
+  if (team.tableY > 10) {
+    bodyEl.classList.add('reverse');
+  } else {
+    bodyEl.classList.remove('reverse');
+  }
+}
+
+function renderTeams() {
+  const container = document.getElementById('teams-container');
+  container.innerHTML = '';
+  container.style.gridTemplateColumns = `repeat(${game.players}, 1fr)`;
+
+  game.teams.forEach(team => {
+    const panel = document.createElement('div');
+    panel.className = 'team-panel';
+    panel.innerHTML = `
+      <div class="team-header">
+        <div class="team-name">${team.name}</div>
+        <div class="team-score" data-team="${team.id}">0</div>
+      </div>
+      <div class="team-body">
+        <div class="board-wrapper">
+          <div class="board" data-team="${team.id}"></div>
+        </div>
+        ${game.mode === 'gyeolhap' ? `
+        <div class="info-wrapper">
+            <button class="gyeol-btn" data-team="${team.id}">결!</button>
+            <div class="found-label">찾은 조합 <span class="found-count" data-team="${team.id}">0</span>개</div>
+            <div class="found-list" data-team="${team.id}"></div>
+        </div>
+        ` : ''}
+      </div>
+      <div class="team-controls">
+        <div class="control-row">
+          <label>테이블 위치</label>
+          <input type="range" class="pos-slider" min="-30" max="30" value="0">
+        </div>
+        <div class="control-row">
+          <label>테이블 크기</label>
+          <input type="range" class="size-slider" min="50" max="100" value="100">
+        </div>
+      </div>
+    `;
+    team.el = panel;
+    container.appendChild(panel);
+
+    const posSlider = panel.querySelector('.pos-slider');
+    const sizeSlider = panel.querySelector('.size-slider');
+    
+    posSlider.addEventListener('input', (e) => {
+      team.tableY = parseInt(e.target.value);
+      updateTeamStyle(team);
+    });
+    
+    sizeSlider.addEventListener('input', (e) => {
+      team.tableScale = parseInt(e.target.value) / 100;
+      updateTeamStyle(team);
+    });
+
+    renderBoard(team);
+
+    if (game.mode === 'gyeolhap') {
+      panel.querySelector('.gyeol-btn').addEventListener('click', (e) => {
+        createRipple(e, panel.querySelector('.gyeol-btn'));
+        handleGyeol(team);
+      });
+    }
+  });
+}
+
+function renderBoard(team) {
+  const boardEl = team.el.querySelector('.board');
+  boardEl.innerHTML = '';
+  team.board.forEach((card, idx) => {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'card';
+    cardEl.dataset.idx = idx;
+    cardEl.innerHTML = cardSVG(card);
+    if (team.selected.includes(idx)) cardEl.classList.add('selected');
+    cardEl.addEventListener('click', (e) => {
+      createRipple(e, cardEl);
+      handleCardTap(team, idx, cardEl);
+    });
+    boardEl.appendChild(cardEl);
+  });
+}
+
+function createRipple(e, el) {
+  const rect = el.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const x = (e.clientX || rect.left + rect.width / 2) - rect.left - size / 2;
+  const y = (e.clientY || rect.top + rect.height / 2) - rect.top - size / 2;
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = x + 'px';
+  ripple.style.top = y + 'px';
+  el.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+}
+
+function handleCardTap(team, idx, cardEl) {
+  if (!game.running || team.locked) return;
+  ensureAudio();
+  sfxTap();
+
+  const sel = team.selected;
+  const pos = sel.indexOf(idx);
+  if (pos >= 0) {
+    sel.splice(pos, 1);
+    cardEl.classList.remove('selected');
+    return;
+  }
+  if (sel.length >= 3) return;
+  sel.push(idx);
+  cardEl.classList.add('selected');
+
+  if (sel.length === 3) {
+    judge(team);
+  }
+}
+
+function judge(team) {
+  const cards = team.selected.map(i => team.board[i]);
+  const valid = isValidSet(cards[0], cards[1], cards[2]);
+
+  if (game.mode === 'gyeolhap' && valid && team.alreadyFound(cards)) {
+    flashCards(team, team.selected, 'wrong-flash');
+    sfxWrong();
+    showPopup(team, '이미 찾음!', 'minus');
+    setTimeout(() => {
+      team.selected.forEach(i => {
+        const el = team.el.querySelector(`.card[data-idx="${i}"]`);
+        if (el) el.classList.remove('selected');
+      });
+      team.selected = [];
+    }, 500);
+    return;
+  }
+
+  if (valid) {
+    team.score += 10;
+    sfxCorrect();
+    flashCards(team, team.selected, 'correct-flash');
+    showPopup(team, '+10', 'plus');
+    updateScore(team);
+
+    if (game.mode === 'hap') {
+      team.locked = true;
+      setTimeout(() => {
+        team.replaceCards(team.selected);
+        team.selected = [];
+        renderBoard(team);
+        team.locked = false;
+      }, 600);
+    } else {
+      team.foundSets.push({ key: team.setKey(cards), cards: cards.slice() });
+      renderFoundList(team);
+      setTimeout(() => {
+        team.selected.forEach(i => {
+          const el = team.el.querySelector(`.card[data-idx="${i}"]`);
+          if (el) el.classList.remove('selected');
+        });
+        team.selected = [];
+      }, 600);
+    }
+  } else {
+    sfxWrong();
+    flashCards(team, team.selected, 'wrong-flash');
+    showPopup(team, '땡!', 'minus');
+    setTimeout(() => {
+      team.selected.forEach(i => {
+        const el = team.el.querySelector(`.card[data-idx="${i}"]`);
+        if (el) el.classList.remove('selected');
+      });
+      team.selected = [];
+    }, 500);
+  }
+}
+
+function flashCards(team, indices, cls) {
+  indices.forEach(i => {
+    const el = team.el.querySelector(`.card[data-idx="${i}"]`);
+    if (el) {
+      el.classList.add(cls);
+      setTimeout(() => el.classList.remove(cls), 600);
+    }
+  });
+}
+
+function updateScore(team) {
+  const el = team.el.querySelector('.team-score');
+  el.textContent = team.score;
+  el.classList.add('pop');
+  setTimeout(() => el.classList.remove('pop'), 300);
+}
+
+function renderFoundList(team) {
+  const list = team.el.querySelector('.found-list');
+  const count = team.el.querySelector('.found-count');
+  if (!list) return;
+  count.textContent = team.foundSets.length;
+  if (team.foundSets.length > list.children.length) {
+    const s = team.foundSets[team.foundSets.length - 1];
+    const setEl = document.createElement('div');
+    setEl.className = 'found-set';
+    setEl.innerHTML = s.cards.map(c => `<div class="mini-card">${cardSVG(c)}</div>`).join('');
+    list.appendChild(setEl);
+    list.scrollTop = list.scrollHeight;
+  }
+}
+
+function handleGyeol(team) {
+  if (!game.running || team.locked) return;
+  ensureAudio();
+  const remaining = findAllSets(team.board)
+    .filter(idxSet => {
+      const cards = idxSet.map(i => team.board[i]);
+      return !team.alreadyFound(cards);
+    });
+
+  if (remaining.length === 0) {
+    team.score += 30;
+    sfxFanfare();
+    showPopup(team, '+30 결!', 'plus');
+    showToast(`${team.name} 결! 성공! +30점`, 'big-success');
+    updateScore(team);
+    team.locked = true;
+    setTimeout(() => {
+      team.refreshBoard();
+      renderBoard(team);
+      const list = team.el.querySelector('.found-list');
+      if (list) list.innerHTML = '';
+      const count = team.el.querySelector('.found-count');
+      if (count) count.textContent = '0';
+      team.locked = false;
+    }, 1200);
+  } else {
+    team.score -= 10;
+    sfxWrong();
+    showPopup(team, '-10', 'minus');
+    showToast(`${team.name} 결! 실패 -10점`, 'fail');
+    updateScore(team);
+  }
+}
+
+function showPopup(team, text, type) {
+  const p = document.createElement('div');
+  p.className = 'score-popup ' + type;
+  p.textContent = text;
+  team.el.appendChild(p);
+  setTimeout(() => p.remove(), 1200);
+}
+function showToast(text, type = 'success') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = text;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1600);
+}
+
+function startTimer() {
+  game.remaining = game.timeLimit;
+  updateTimerDisplay();
+  if (game.timerId) clearInterval(game.timerId);
+  game.timerId = setInterval(() => {
+    game.remaining--;
+    updateTimerDisplay();
+    if (game.remaining <= 10 && game.remaining > 0) sfxTick();
+    if (game.remaining <= 0) {
+      clearInterval(game.timerId);
+      endGame();
+    }
+  }, 1000);
+}
+function updTimerClass(el) {
+  el.classList.remove('warning', 'danger');
+  if (game.remaining <= 10) el.classList.add('danger');
+  else if (game.remaining <= 30) el.classList.add('warning');
+}
+function updateTimerDisplay() {
+  const el = document.getElementById('timer-display');
+  const m = Math.floor(game.remaining / 60);
+  const s = game.remaining % 60;
+  el.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  updTimerClass(el);
+}
+
+function endGame() {
+  game.running = false;
+  sfxEnd();
+  const sorted = game.teams.slice().sort((a, b) => b.score - a.score);
+  const list = document.getElementById('result-list');
+  list.innerHTML = '';
+  sorted.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.className = 'result-row' + (i < 3 ? ' rank-' + (i + 1) : '');
+    const medal = ['🥇', '🥈', '🥉'][i] || `${i + 1}위`;
+    row.innerHTML = `
+      <span class="rank">${medal}</span>
+      <span class="name">${t.name}</span>
+      <span class="score">${t.score}점</span>
+    `;
+    list.appendChild(row);
+  });
+  document.getElementById('screen-result').style.display = 'flex';
+}
+
+function openConfirmModal(msg, onConfirm) {
+  const overlay = document.getElementById('custom-modal-overlay');
+  const text = document.getElementById('modal-text');
+  const okBtn = document.getElementById('modal-ok');
+  const cancelBtn = document.getElementById('modal-cancel');
+  
+  text.textContent = msg;
+  overlay.style.display = 'flex';
+  
+  const handleOk = () => {
+    ensureAudio(); sfxTap();
+    overlay.style.display = 'none';
+    okBtn.removeEventListener('click', handleOk);
+    cancelBtn.removeEventListener('click', handleCancel);
+    onConfirm();
+  };
+  
+  const handleCancel = () => {
+    ensureAudio(); sfxTap();
+    overlay.style.display = 'none';
+    okBtn.removeEventListener('click', handleOk);
+    cancelBtn.removeEventListener('click', handleCancel);
+  };
+  
+  okBtn.addEventListener('click', handleOk);
+  cancelBtn.addEventListener('click', handleCancel);
+}
+
+document.getElementById('quit-btn').addEventListener('click', () => {
+  ensureAudio(); sfxTap();
+  openConfirmModal('게임을 종료하시겠습니까?', () => {
+    clearInterval(game.timerId);
+    endGame();
+  });
+});
+
+document.getElementById('again-btn').addEventListener('click', () => {
+  ensureAudio(); sfxTap();
+  startGame();
+});
+
+document.getElementById('home-btn').addEventListener('click', () => {
+  ensureAudio(); sfxTap();
+  clearInterval(game.timerId);
+  document.getElementById('screen-game').style.display = 'none';
+  document.getElementById('screen-result').style.display = 'none';
+  document.getElementById('screen-start').style.display = 'flex';
+});
+
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+
+</script>
+</body>
+</html>
