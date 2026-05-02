@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>4글자 릴레이 퀴즈</title>
+    <style>
+        @font-face {
+            font-family: 'CookieRun';
+            src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/CookieRun-Regular.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            font-family: 'CookieRun', sans-serif;
+            color: white;
+            overflow: hidden;
+            background: linear-gradient(-45deg, #FF6B6B, #FFD93D, #6BCB77, #4D96FF);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        @keyframes gradientBG {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .content {
+            text-align: center;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 4.5rem;
+            margin-bottom: 2rem;
+            text-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
+            font-weight: bold;
+        }
+
+        h2 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.2);
+        }
+
+        .blink {
+            font-size: 1.8rem;
+            animation: blinker 1.5s linear infinite;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px 40px;
+            border-radius: 50px;
+        }
+
+        @keyframes blinker {
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        #word-display {
+            font-size: 22vw;
+            font-weight: bold;
+            text-shadow: 8px 8px 0px rgba(0, 0, 0, 0.2);
+            margin: auto;
+            z-index: 5;
+            transition: transform 0.1s;
+        }
+
+        #word-display.pop {
+            transform: scale(1.1);
+        }
+
+        .score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 1.8rem;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 25px;
+            border-radius: 30px;
+            z-index: 10;
+        }
+
+        #final-score {
+            font-size: 8rem;
+            font-weight: bold;
+            text-shadow: 5px 5px 0px rgba(0, 0, 0, 0.2);
+            margin-bottom: 1rem;
+            color: #FFF323;
+        }
+
+        .bottom-btn {
+            position: absolute;
+            bottom: 30px;
+            padding: 15px 40px;
+            font-size: 1.8rem;
+            font-family: inherit;
+            border: none;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+            z-index: 20;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            font-weight: bold;
+        }
+
+        .bottom-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .bottom-btn:active {
+            transform: translateY(2px);
+        }
+
+        .action-btn {
+            padding: 20px 50px;
+            font-size: 2rem;
+            font-family: inherit;
+            border: none;
+            border-radius: 50px;
+            background: white;
+            color: #FF6B6B;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            font-weight: bold;
+            margin-top: 2rem;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .action-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Effects */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transform: translate(-50%, -50%) scale(0);
+            animation: ripple-anim 0.6s ease-out;
+            pointer-events: none;
+            z-index: 100;
+            width: 100px;
+            height: 100px;
+        }
+
+        @keyframes ripple-anim {
+            to {
+                transform: translate(-50%, -50%) scale(5);
+                opacity: 0;
+            }
+        }
+
+        .particle {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: white;
+            pointer-events: none;
+            z-index: 99;
+            animation: particle-anim 0.8s cubic-bezier(0, .9, .57, 1) forwards;
+        }
+
+        @keyframes particle-anim {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ready-screen" class="screen active">
+        <div class="content">
+            <h1>4글자 릴레이 퀴즈</h1>
+            <p class="blink">화면을 터치하면 시작합니다</p>
+        </div>
+        <button id="reset-btn" class="bottom-btn">단어 리셋</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="score-board">연속 정답: <span id="current-score">0</span></div>
+        <div id="word-display">단어</div>
+        <button id="end-btn" class="bottom-btn">종료</button>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <div class="content">
+            <h2>최종 점수</h2>
+            <div id="final-score">0</div>
+            <p style="font-size:2rem; margin-bottom: 2rem;">연속 정답 성공!</p>
+            <button id="home-btn" class="action-btn">준비화면으로 가기</button>
+        </div>
+    </div>
+
+    <script>
+        const wordList = [
+            "백설공주", "인어공주", "놀이공원", "동물병원", "초등학교", "텔레비전", "스마트폰", "오토바이", "헬리콥터", "무당벌레",
+            "사슴벌레", "고슴도치", "스파게티", "마카로니", "체육대회", "일석이조", "동서남북", "춘하추동", "작심삼일", "금상첨화",
+            "십중팔구", "천고마비", "다재다능", "동문서답", "박장대소", "횡단보도", "미끄럼틀", "모래놀이", "숨바꼭질", "술래잡기",
+            "소꿉놀이", "강강술래", "인공지능", "가상현실", "메타버스", "여름방학", "겨울방학", "생일파티", "종이접기", "보드게임",
+            "블루투스", "공지사항", "주의사항", "일기예보", "교통카드", "신용카드", "안전벨트", "구명조끼", "대한민국", "타임머신",
+            "보물찾기", "그림일기", "알람시계", "손목시계", "모래시계", "돼지꼬리", "몽당연필", "체육시간", "오랑우탄", "나무늘보",
+            "딱지치기", "구슬치기", "비석치기", "투호놀이", "제기차기", "연날리기", "팽이치기", "요술램프", "투명망토", "비행접시",
+            "사진찍기", "쓰레기통", "분리수거", "미세먼지", "대중교통", "호랑나비", "회전목마", "비눗방울", "전래동화", "카멜레온",
+            "미술학원", "사과나무", "포도나무", "은행나무", "벚꽃축제", "단풍놀이", "우주여행", "무지개떡", "사막여우",
+            "카드게임", "일상생활", "준비운동", "시력검사", "치과검진", "예방접종", "화재대피", "지진훈련", "교통안전",
+            "종합병원", "대형마트", "전통시장", "벼룩시장", "워터파크", "눈썰매장", "국립공원", "파인애플",
+            "고구마칩", "계란말이", "김치찌개", "된장찌개", "부대찌개", "돼지고기", "소불고기", "오리고기",
+            "생선구이", "갈치조림", "볶음우동", "순대국밥", "비빔냉면", "잔치국수", "만두전골", "어묵꼬치",
+            "초코우유", "딸기우유", "포도주스", "사과주스", "수박주스", "망고주스", "컴퓨터실", "주민센터",
+            "선글라스", "군고구마", "블루베리", "아보카도", "파프리카", "숙주나물", "올리브유",
+            "마요네즈", "머스타드", "칠리소스", "요구르트", "둥굴레차", "오미자차", "이온음료", "탄산음료", "게토레이", "비타오백",
+            "옥수수차", "액션영화", "공포영화", "음악방송", "아침방송", "신문기사", "추천도서", "그림동화",
+            "위인전기", "역사만화", "과학도서", "학습만화", "특별활동", "영어단어", "국어사전",
+            "백과사전", "오답노트", "스케치북", "연필깎이", "아침식사", "점심식사", "저녁식사", "간식시간",
+            "드라이브", "인공위성", "아이스티", "자몽주스", "카페라떼", "카푸치노",
+            "생크림빵", "소보로빵", "크루아상", "오징어채", "쥐포구이", "땅콩버터", "호두과자",
+            "막대사탕", "과일빙수", "튀김우동",
+            "군밤장수", "회전초밥", "참치김밥", "치즈김밥", "삼각김밥", "유부초밥", "샌드위치", "감자튀김", "치즈스틱", "치킨너겟",
+            "플라스틱", "냄비뚜껑", "프라이팬", "오븐구이", "전기밥솥",
+            "냉동식품", "장바구니", "카드결제", "현금결제", "계좌이체", "와이파이", "비밀번호", "고객센터", "당근마켓", "동물농장", "가족여행"
+        ];
+
+        let unusedWords = [];
+        let score = 0;
+        let isGameRunning = false;
+        let canInteract = true;
+
+        // Elements
+        const readyScreen = document.getElementById('ready-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const wordDisplay = document.getElementById('word-display');
+        const currentScoreDisplay = document.getElementById('current-score');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const resetBtn = document.getElementById('reset-btn');
+        const endBtn = document.getElementById('end-btn');
+        const homeBtn = document.getElementById('home-btn');
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function resetWords() {
+            unusedWords = [...wordList];
+            shuffle(unusedWords);
+        }
+
+        function getNextWord() {
+            if (unusedWords.length === 0) {
+                resetWords();
+            }
+            return unusedWords.pop();
+        }
+
+        function showScreen(screen) {
+            readyScreen.classList.remove('active');
+            gameScreen.classList.remove('active');
+            resultScreen.classList.remove('active');
+            screen.classList.add('active');
+        }
+
+        function startGame() {
+            if (unusedWords.length === 0) resetWords();
+            score = 0;
+            currentScoreDisplay.textContent = score;
+            isGameRunning = true;
+            showNextWord(false);
+            showScreen(gameScreen);
+        }
+
+        function endGame() {
+            isGameRunning = false;
+            finalScoreDisplay.textContent = score;
+            showScreen(resultScreen);
+        }
+
+        function showNextWord(isCorrect = true) {
+            if (isCorrect) {
+                score++;
+                currentScoreDisplay.textContent = score;
+                playDingDong();
+            }
+
+            const word = getNextWord();
+            wordDisplay.textContent = word.substring(0, 2);
+
+            // Pop effect
+            wordDisplay.classList.remove('pop');
+            void wordDisplay.offsetWidth; // trigger reflow
+            wordDisplay.classList.add('pop');
+
+            // Disable interactions briefly to prevent double tapping
+            canInteract = false;
+            setTimeout(() => canInteract = true, 300);
+        }
+
+        // Effects
+        function createRipple(x, y) {
+            const ripple = document.createElement("div");
+            ripple.className = "ripple";
+            ripple.style.left = `${x}px`;
+            ripple.style.top = `${y}px`;
+            document.body.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        }
+
+        function createParticles(x, y) {
+            const colors = ['#FFF323', '#FF6B6B', '#6BCB77', '#4D96FF', '#FF00FF'];
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement("div");
+                particle.className = "particle";
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+                const angle = Math.random() * 2 * Math.PI;
+                const velocity = Math.random() * 200 + 50;
+                const tx = Math.cos(angle) * velocity;
+                const ty = Math.sin(angle) * velocity;
+
+                particle.style.setProperty('--tx', `${tx}px`);
+                particle.style.setProperty('--ty', `${ty}px`);
+
+                document.body.appendChild(particle);
+                setTimeout(() => particle.remove(), 800);
+            }
+        }
+
+        // Audio
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playDingDong() {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc1.type = 'sine';
+            osc2.type = 'sine';
+
+            osc1.frequency.setValueAtTime(659.25, audioCtx.currentTime); // E5
+            osc2.frequency.setValueAtTime(523.25, audioCtx.currentTime + 0.3); // C5
+
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+
+            const gainNode2 = audioCtx.createGain();
+            gainNode2.gain.setValueAtTime(0, audioCtx.currentTime + 0.3);
+            gainNode2.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.35);
+            gainNode2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+
+            osc1.connect(gainNode);
+            osc2.connect(gainNode2);
+            gainNode.connect(audioCtx.destination);
+            gainNode2.connect(audioCtx.destination);
+
+            osc1.start(audioCtx.currentTime);
+            osc1.stop(audioCtx.currentTime + 0.3);
+
+            osc2.start(audioCtx.currentTime + 0.3);
+            osc2.stop(audioCtx.currentTime + 0.8);
+        }
+
+        // Event Listeners
+        document.body.addEventListener('pointerdown', (e) => {
+            if (!canInteract) return;
+
+            initAudio(); // Initialize audio context on first interaction
+
+            // Check if clicked on a button
+            if (e.target.tagName === 'BUTTON') return;
+
+            const x = e.clientX;
+            const y = e.clientY;
+
+            createRipple(x, y);
+
+            if (readyScreen.classList.contains('active')) {
+                startGame();
+            } else if (gameScreen.classList.contains('active')) {
+                createParticles(x, y);
+                showNextWord(true);
+            }
+        });
+
+        resetBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            initAudio();
+            resetWords();
+
+            resetBtn.textContent = "리셋 완료!";
+            resetBtn.style.background = "rgba(107, 203, 119, 0.8)";
+            setTimeout(() => {
+                resetBtn.textContent = "단어 리셋";
+                resetBtn.style.background = "rgba(255,255,255,0.2)";
+            }, 1000);
+        });
+
+        endBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            if (gameScreen.classList.contains('active')) {
+                endGame();
+            }
+        });
+
+        homeBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            showScreen(readyScreen);
+        });
+
+        // Initialize
+        resetWords();
+    </script>
+</body>
+
+</html>
