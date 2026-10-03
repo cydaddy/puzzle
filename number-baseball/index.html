@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f6f2">
+  <meta name="description" content="친구와 함께하는 숫자 추리 한 판! 2~3명이 방 코드로 모이는 실시간 숫자야구.">
+  <title>숫자야구 클럽 — 친구와 머리 쓰는 한 판!</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='20' fill='%23dcf887'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='44'%3E⚾%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="vendor/mqtt.min.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="header">
+      <a class="brand" href="./" aria-label="숫자야구 클럽 처음으로"><span class="brand-ball">⚾</span><span>숫자야구 <b>클럽</b><small>NUMBER BASEBALL CLUB</small></span></a>
+      <div class="header-actions"><span class="connection" id="connection">친구와 머리 쓰는 한 판!</span><button class="icon-button" id="sound" aria-label="효과음 켜기" title="효과음 켜기">♪<span class="sound-off">off</span></button><button class="help-button" id="help">게임 방법 <span>?</span></button></div>
+    </header>
+    <main id="app"></main>
+    <footer><span>같이 생각하면, 더 재미있으니까.</span><span>2–3 PLAYERS <i>✦</i> ZERO DUPLICATES <i>✦</i> BIG IDEAS</span></footer>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <dialog id="rules"><form method="dialog"><div class="section-top"><span class="eyebrow">HOW TO PLAY</span><button class="icon-button" aria-label="설명 닫기">✕</button></div><h2>숫자 속 힌트를 찾아라!</h2><p>0부터 9까지, <b>겹치지 않는 3자리 또는 4자리</b> 숫자를 맞혀요. 맨 앞에 0이 와도 괜찮아요.</p><div class="rule-example">정답이 <b>012</b>일 때 <b>021</b>을 던지면?<div><span class="pill strike">1 스트라이크</span> <span class="pill ball">2 볼</span></div></div><ul class="rules-list"><li><b class="text-green">S · 스트라이크</b> 숫자도, 자리도 딱 맞아요.</li><li><b class="text-orange">B · 볼</b> 숫자는 있지만 자리가 달라요.</li><li><b>OUT · 아웃</b> 맞는 숫자가 하나도 없어요.</li></ul><p><b>각자 출제</b> · 각자의 비밀 숫자를 정해요. 다른 친구 모두의 숫자를 먼저 맞히면 승리! 내 숫자가 들켜도 계속 도전할 수 있어요.</p><p><b>공통 정답</b> · 무작위로 정한 같은 숫자를 함께 맞혀요. 가장 먼저 맞힌 친구가 이겨요.</p><p><b>스피드 대전</b> · 동시에 자유롭게 추측해요. 한 번 던진 뒤 1.2초 동안 생각할 시간을 가져요.</p><p><b>턴제 대전</b> · 45초씩 돌아가며 한 번 추측해요. 시간이 지나면 다음 친구 차례! 먼저 목표를 달성하면 이겨요.</p><p class="muted">모든 추측과 결과는 함께 봐요. 친구가 찾은 힌트도 잘 살펴보세요. 다음 경기는 시작 순서가 바뀌어요.</p><button class="button primary full">좋아, 이해했어! <span>↗</span></button></form></dialog>
+  <dialog id="leave-dialog"><h2>방에서 나갈까요?</h2><p id="leave-message"></p><div class="button-row"><button class="button secondary" id="stay">계속 하기</button><button class="button primary" id="confirm-leave">나가기</button></div></dialog>
+  <noscript>이 게임은 JavaScript를 켜야 즐길 수 있어요.</noscript>
+</body>
+</html>

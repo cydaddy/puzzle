@@ -56,6 +56,18 @@
     <!-- Elimination Flash Overlay -->
     <div class="elimination-flash" id="elimination-flash"></div>
 
+    <!-- Elimination Choice Overlay (shown after every timeout) -->
+    <div class="victory-overlay hidden" id="elimination-choice-overlay">
+      <div class="victory-content">
+        <div class="victory-emoji">⏰</div>
+        <div class="victory-text" id="elimination-choice-text">시간 초과!</div>
+        <div class="elimination-choice-buttons">
+          <button class="victory-next-btn eliminate-choice-btn" id="eliminate-choice-btn">🚫 탈락 처리</button>
+          <button class="victory-next-btn continue-choice-btn" id="continue-choice-btn">▶️ 탈락 없이 계속</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Victory Overlay -->
     <div class="victory-overlay hidden" id="victory-overlay">
       <div class="victory-content">
@@ -127,6 +139,17 @@
             <select id="difficulty-filter-select" class="custom-select">
               <option value="easy" selected>쉬운 카테고리만</option>
               <option value="all">전체 카테고리</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <label for="cards-to-win-select">승리 조건</label>
+            <select id="cards-to-win-select" class="custom-select">
+              <option value="1">카드 1장</option>
+              <option value="2">카드 2장</option>
+              <option value="3" selected>카드 3장 (기본)</option>
+              <option value="5">카드 5장</option>
+              <option value="7">카드 7장</option>
             </select>
           </div>
 

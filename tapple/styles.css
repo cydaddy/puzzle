@@ -495,6 +495,27 @@ body {
   box-shadow: 0 4px 15px var(--primary-glow);
 }
 
+.elimination-choice-buttons {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.elimination-choice-buttons .victory-next-btn {
+  padding: 14px 24px;
+}
+
+.eliminate-choice-btn {
+  background: linear-gradient(135deg, var(--accent-red), var(--accent-orange)) !important;
+  color: #fff !important;
+}
+
+.continue-choice-btn {
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan)) !important;
+  color: #070b13 !important;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

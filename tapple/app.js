@@ -271,6 +271,11 @@ const victoryOverlay = document.getElementById('victory-overlay');
 const victoryText = document.getElementById('victory-text');
 const victoryNextBtn = document.getElementById('victory-next-btn');
 
+const eliminationChoiceOverlay = document.getElementById('elimination-choice-overlay');
+const eliminationChoiceText = document.getElementById('elimination-choice-text');
+const eliminateChoiceBtn = document.getElementById('eliminate-choice-btn');
+const continueChoiceBtn = document.getElementById('continue-choice-btn');
+
 const categoryListContainer = document.getElementById('category-list-container');
 const newCategoryInput = document.getElementById('new-category-input');
 const addCategoryBtn = document.getElementById('add-category-btn');
@@ -282,6 +287,7 @@ const addPlayerBtn = document.getElementById('add-player-btn');
 
 const timerDurationSelect = document.getElementById('timer-duration-select');
 const difficultyFilterSelect = document.getElementById('difficulty-filter-select');
+const cardsToWinSelect = document.getElementById('cards-to-win-select');
 const langSelect = document.getElementById('lang-select');
 const soundCheckbox = document.getElementById('sound-checkbox');
 
@@ -302,11 +308,16 @@ function init() {
   // Initialize category lists with enabled/used flags
   initCategories();
 
-  // Add default players
-  addPlayer("플레이어 1");
-  addPlayer("플레이어 2");
+  // Restore saved players/categories/settings from a previous session, if any
+  const restored = loadState();
 
-  // Build wheel
+  // Add default players only if nothing was restored
+  if (players.length === 0) {
+    addPlayer("플레이어 1");
+    addPlayer("플레이어 2");
+  }
+
+  // Build wheel (depends on currentLang, which loadState() may have changed)
   initWheel();
 
   // Reset display
@@ -316,11 +327,105 @@ function init() {
   renderCategoryList();
   updateCategoryCardCount();
 
+  // Reflect restored settings in the <select>/<input> controls themselves
+  syncSettingsUI();
+  if (restored && currentLang !== 'ko') {
+    translateUI();
+  }
+
   // Setup events
   setupEventListeners();
 
   // Show settings on first load
   settingsDialog.showModal();
+}
+
+// ============================================
+// PERSISTENCE (localStorage)
+// ============================================
+
+const STORAGE_KEY = 'tapple-wheel-state-v1';
+
+function saveState() {
+  try {
+    const state = {
+      currentLang,
+      difficultyFilter,
+      gameDuration,
+      cardsToWin,
+      isSoundEnabled,
+      players: players.map(p => ({ name: p.name })),
+      categoriesKo: categoriesKo.map(c => ({ id: c.id, text: c.text, difficulty: c.difficulty, enabled: c.enabled, custom: c.custom })),
+      categoriesEn: categoriesEn.map(c => ({ id: c.id, text: c.text, difficulty: c.difficulty, enabled: c.enabled, custom: c.custom })),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    // localStorage unavailable (private browsing, quota, etc.) — ignore
+  }
+}
+
+function applyCategoryOverrides(defaultList, savedList) {
+  if (!Array.isArray(savedList)) return;
+  const savedById = new Map(savedList.map(c => [c.id, c]));
+
+  // Restore enabled/disabled state for built-in categories
+  defaultList.forEach(c => {
+    const s = savedById.get(c.id);
+    if (s) c.enabled = !!s.enabled;
+  });
+
+  // Re-add custom categories the user created previously
+  savedList.forEach(s => {
+    if (s.custom && !defaultList.some(c => c.id === s.id)) {
+      defaultList.push({
+        id: s.id,
+        text: s.text,
+        difficulty: s.difficulty || 'EASY',
+        enabled: !!s.enabled,
+        used: false,
+        custom: true,
+      });
+    }
+  });
+}
+
+function loadState() {
+  let saved = null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) saved = JSON.parse(raw);
+  } catch (e) {
+    saved = null;
+  }
+  if (!saved) return false;
+
+  if (saved.currentLang === 'ko' || saved.currentLang === 'en') currentLang = saved.currentLang;
+  if (saved.difficultyFilter === 'easy' || saved.difficultyFilter === 'all') difficultyFilter = saved.difficultyFilter;
+  if (typeof saved.gameDuration === 'number' && saved.gameDuration > 0) {
+    gameDuration = saved.gameDuration;
+    timeLeft = gameDuration;
+  }
+  if (typeof saved.cardsToWin === 'number' && saved.cardsToWin > 0) cardsToWin = saved.cardsToWin;
+  if (typeof saved.isSoundEnabled === 'boolean') isSoundEnabled = saved.isSoundEnabled;
+
+  applyCategoryOverrides(categoriesKo, saved.categoriesKo);
+  applyCategoryOverrides(categoriesEn, saved.categoriesEn);
+
+  if (Array.isArray(saved.players) && saved.players.length > 0) {
+    saved.players.forEach(p => {
+      if (p && p.name) addPlayer(p.name);
+    });
+  }
+
+  return true;
+}
+
+function syncSettingsUI() {
+  timerDurationSelect.value = String(gameDuration);
+  difficultyFilterSelect.value = difficultyFilter;
+  cardsToWinSelect.value = String(cardsToWin);
+  langSelect.value = currentLang;
+  soundCheckbox.checked = isSoundEnabled;
 }
 
 function initCategories() {
@@ -388,9 +493,31 @@ function initWheel() {
 function checkRemainingLetters() {
   const activeLetters = tappleWheel.querySelectorAll('.letter-btn:not(.pressed)');
   if (activeLetters.length === 0) {
-    pauseTimer();
     playSound('success');
-    overlayCategoryText.textContent = currentLang === 'ko' ? "모든 글자 사용 완료! 🎉" : "All letters used! 🎉";
+    resolveLettersExhausted();
+  }
+}
+
+// Every letter on the wheel got used before anyone timed out. Nobody is at
+// fault here, so nobody is eliminated — just refill the wheel with a fresh
+// category and let the same player carry on. Previously this just paused the
+// timer and left the game permanently stuck, since every letter button
+// becomes unclickable (pointer-events: none) once pressed.
+function resolveLettersExhausted() {
+  pauseTimer();
+  gameState = 'idle';
+
+  tappleWheel.querySelectorAll('.letter-btn').forEach(btn => btn.classList.remove('pressed'));
+  letterPressedThisTurn = false;
+  resetTimerDisplay();
+  drawCategoryCard();
+
+  const activePlayer = players[activePlayerIndex];
+  if (activePlayer) {
+    overlayPlayerText.textContent = currentLang === 'ko'
+      ? `🔄 ${activePlayer.name}님, 새 카테고리로 계속!`
+      : `🔄 ${activePlayer.name}, new category — keep going!`;
+    playerOverlay.classList.add('active-turn');
   }
 }
 
@@ -517,40 +644,114 @@ function triggerTimeOut() {
 
   if (players.length > 0 && activePlayerIndex >= 0) {
     const player = players[activePlayerIndex];
-    player.active = false;
-    renderPlayers();
+    setTimeout(() => showEliminationChoice(player), 400);
+  }
+}
 
-    const activePlayers = players.filter(p => p.active);
+// Ask the host whether the timed-out player should be knocked out of the
+// round or stay in and simply pass the turn. Runs after every timeout so the
+// game never gets stuck waiting on a decision that was previously automatic
+// (and previously left the app frozen once 3+ players were in a round).
+function showEliminationChoice(player) {
+  eliminationChoiceText.textContent = currentLang === 'ko'
+    ? `⏰ ${player.name}님 시간 초과!`
+    : `⏰ ${player.name} ran out of time!`;
+  eliminateChoiceBtn.textContent = currentLang === 'ko' ? '🚫 탈락 처리' : '🚫 Eliminate';
+  continueChoiceBtn.textContent = currentLang === 'ko' ? '▶️ 탈락 없이 계속' : '▶️ Continue, no elimination';
 
-    if (activePlayers.length <= 1) {
-      // Round over!
-      if (activePlayers.length === 1) {
-        const winner = activePlayers[0];
-        winner.score += 1;
-        renderPlayers();
+  eliminationChoiceOverlay.classList.remove('hidden');
 
-        // Check if someone won the game
-        if (winner.score >= cardsToWin) {
-          setTimeout(() => showVictory(winner, true), 800);
-        } else {
-          setTimeout(() => showVictory(winner, false), 800);
-        }
+  eliminateChoiceBtn.onclick = () => {
+    playSound('click');
+    eliminationChoiceOverlay.classList.add('hidden');
+    eliminatePlayerAndContinue(player);
+  };
+
+  continueChoiceBtn.onclick = () => {
+    playSound('click');
+    eliminationChoiceOverlay.classList.add('hidden');
+    continueWithoutElimination();
+  };
+}
+
+function eliminatePlayerAndContinue(player) {
+  player.active = false;
+  renderPlayers();
+
+  const activePlayers = players.filter(p => p.active);
+
+  if (activePlayers.length <= 1) {
+    // Round over!
+    if (activePlayers.length === 1) {
+      const winner = activePlayers[0];
+      winner.score += 1;
+      renderPlayers();
+
+      if (winner.score >= cardsToWin) {
+        showVictory(winner, true);
       } else {
-        // All eliminated (edge case)
-        overlayPlayerText.textContent = currentLang === 'ko' ? "모두 탈락! 😱" : "Everyone eliminated! 😱";
+        showVictory(winner, false);
       }
     } else {
-      overlayPlayerText.textContent = currentLang === 'ko'
-        ? `${player.name} 탈락! 💀`
-        : `${player.name} eliminated! 💀`;
-
-      // Move to next active player after a brief pause
-      setTimeout(() => {
-        moveToNextActivePlayer();
-        updateOverlays();
-      }, 1200);
+      // All eliminated (edge case) — don't leave the game stuck
+      overlayPlayerText.textContent = currentLang === 'ko' ? "모두 탈락! 😱" : "Everyone eliminated! 😱";
+      gameState = 'idle';
     }
+    return;
   }
+
+  overlayPlayerText.textContent = currentLang === 'ko'
+    ? `${player.name} 탈락! 💀`
+    : `${player.name} eliminated! 💀`;
+
+  moveToNextActivePlayer();
+  resumeAfterTimeoutResolution();
+}
+
+// The active player right before `activePlayerIndex` in turn order — i.e.
+// whoever last successfully passed their turn (the one who "was winning"
+// when the timeout happened).
+function getPreviousActivePlayer() {
+  for (let i = 1; i <= players.length; i++) {
+    const idx = (activePlayerIndex - i + players.length) % players.length;
+    if (players[idx].active) return players[idx];
+  }
+  return null;
+}
+
+function continueWithoutElimination() {
+  // No formal elimination sequence — concede this round right now to
+  // whoever succeeded right before the timeout, then start a brand new
+  // round with every player back in (nobody carries "eliminated" state
+  // into the next round, including the player who just timed out).
+  const winner = getPreviousActivePlayer();
+
+  if (!winner) {
+    // No one else to award the round to — just resume safely rather than
+    // getting stuck.
+    resumeAfterTimeoutResolution();
+    return;
+  }
+
+  winner.score += 1;
+  renderPlayers();
+
+  if (winner.score >= cardsToWin) {
+    showVictory(winner, true);
+  } else {
+    showVictory(winner, false);
+  }
+}
+
+// Common cleanup after a timeout is resolved (either path): go back to
+// 'idle' so TAP works again to start the next player's turn. Letters already
+// pressed this round are intentionally left alone — only a new round reset
+// clears the wheel.
+function resumeAfterTimeoutResolution() {
+  gameState = 'idle';
+  resetTimerDisplay();
+  letterPressedThisTurn = false;
+  updateOverlays();
 }
 
 function triggerEliminationFlash() {
@@ -647,6 +848,13 @@ function handleTap() {
       updateOverlays();
     }
   } else if (gameState === 'idle' || gameState === 'paused') {
+    // No category yet (e.g. settings was closed without pressing "게임 시작") —
+    // draw one automatically instead of letting a topic-less round start.
+    if (!currentCategory) {
+      drawCategoryCard();
+      updateOverlays();
+    }
+
     playSound('click');
 
     tapBtn.classList.add('activated');
@@ -668,6 +876,11 @@ function handleTap() {
 // ============================================
 // CATEGORY SYSTEM
 // ============================================
+
+const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, ch => HTML_ESCAPE_MAP[ch]);
+}
 
 function shuffleArray(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -739,7 +952,7 @@ function renderCategoryList() {
         <input type="checkbox" ${cat.enabled ? 'checked' : ''} data-cat-id="${cat.id}">
         <span class="slider round"></span>
       </label>
-      <span class="category-item-text">${cat.text}</span>
+      <span class="category-item-text">${escapeHtml(cat.text)}</span>
       <span class="difficulty-badge ${diffClass}">${diffLabel}</span>
       ${deleteBtn}
     `;
@@ -751,6 +964,7 @@ function renderCategoryList() {
       renderCategoryList();
       updateCategoryCardCount();
       updateStartBtnState();
+      saveState();
     });
 
     // Delete custom
@@ -762,6 +976,7 @@ function renderCategoryList() {
         if (idx !== -1) list.splice(idx, 1);
         renderCategoryList();
         updateCategoryCardCount();
+        saveState();
       });
     }
 
@@ -783,6 +998,7 @@ function addCustomCategory(text) {
   });
   renderCategoryList();
   updateCategoryCardCount();
+  saveState();
 }
 
 // ============================================
@@ -809,6 +1025,7 @@ function addPlayer(name = "") {
   players.push(player);
   renderPlayers();
   updateStartBtnState();
+  saveState();
 }
 
 function deletePlayer(id) {
@@ -818,6 +1035,8 @@ function deletePlayer(id) {
   }
   renderPlayers();
   updateStartBtnState();
+  updateOverlays();
+  saveState();
 }
 
 function renamePlayer(id, newName) {
@@ -826,6 +1045,7 @@ function renamePlayer(id, newName) {
     player.name = newName.trim();
     renderPlayers();
     updateOverlays();
+    saveState();
   }
 }
 
@@ -862,8 +1082,8 @@ function renderPlayers() {
 
     el.innerHTML = `
       <div class="player-info">
-        <div class="player-avatar" style="background: ${avatarGradient}">${player.name.charAt(0)}</div>
-        <span class="player-name" data-player-id="${player.id}">${player.name}</span>
+        <div class="player-avatar" style="background: ${avatarGradient}">${escapeHtml(player.name.charAt(0))}</div>
+        <span class="player-name" data-player-id="${player.id}">${escapeHtml(player.name)}</span>
       </div>
       <div class="player-actions">
         <span class="player-score">${player.score}점</span>
@@ -1024,19 +1244,29 @@ function setupEventListeners() {
     timeLeft = gameDuration;
     countdownDisplay.textContent = timeLeft.toFixed(1);
     resetTimerDisplay();
+    saveState();
   });
 
-  // Difficulty filter — toggle all HARD categories
+  // Difficulty filter — only toggles HARD categories; EASY categories keep
+  // whatever enabled/disabled state the user manually set for them.
   difficultyFilterSelect.addEventListener('change', (e) => {
     difficultyFilter = e.target.value;
     const cats = getCategories();
     cats.forEach(c => {
-      if (!c.custom) {
-        c.enabled = difficultyFilter === 'all' || c.difficulty === 'EASY';
+      if (!c.custom && c.difficulty === 'HARD') {
+        c.enabled = difficultyFilter === 'all';
       }
     });
     renderCategoryList();
     updateCategoryCardCount();
+    updateStartBtnState();
+    saveState();
+  });
+
+  // Cards needed to win the game
+  cardsToWinSelect.addEventListener('change', (e) => {
+    cardsToWin = parseInt(e.target.value, 10);
+    saveState();
   });
 
   // Language
@@ -1048,11 +1278,13 @@ function setupEventListeners() {
     resetTimerDisplay();
     updateOverlays();
     translateUI();
+    saveState();
   });
 
   // Sound
   soundCheckbox.addEventListener('change', (e) => {
     isSoundEnabled = e.target.checked;
+    saveState();
   });
 
   // Start game button — auto-draws category
@@ -1111,14 +1343,13 @@ function translateUI() {
     
     document.querySelector('label[for="timer-duration-select"]').textContent = "제한 시간";
     document.querySelector('label[for="difficulty-filter-select"]').textContent = "난이도 필터";
+    document.querySelector('label[for="cards-to-win-select"]').textContent = "승리 조건";
     document.querySelector('label[for="lang-select"]').textContent = "언어";
     document.querySelector('.toggle-row > span').textContent = "게임 사운드";
     
     resetRoundBtn.textContent = "🔄 라운드 초기화";
     resetAllBtn.textContent = "🗑️ 전체 초기화";
     startGameBtn.textContent = "🎮 게임 시작";
-    
-    categoryPlaceholder.textContent = "주제를 뽑아주세요!";
 
     // Timer options
     const opts = timerDurationSelect.options;
@@ -1133,6 +1364,14 @@ function translateUI() {
     const dOpts = difficultyFilterSelect.options;
     dOpts[0].text = "쉬운 카테고리만";
     dOpts[1].text = "전체 카테고리";
+
+    // Cards-to-win options
+    const wOpts = cardsToWinSelect.options;
+    wOpts[0].text = "카드 1장";
+    wOpts[1].text = "카드 2장";
+    wOpts[2].text = "카드 3장 (기본)";
+    wOpts[3].text = "카드 5장";
+    wOpts[4].text = "카드 7장";
   } else {
     document.querySelector('.settings-header h2').textContent = "⚙️ Game Settings";
     document.querySelector('.settings-section:nth-child(1) .section-title span').textContent = "🏷️ Categories";
@@ -1149,14 +1388,13 @@ function translateUI() {
 
     document.querySelector('label[for="timer-duration-select"]').textContent = "Timer";
     document.querySelector('label[for="difficulty-filter-select"]').textContent = "Difficulty";
+    document.querySelector('label[for="cards-to-win-select"]').textContent = "Win Condition";
     document.querySelector('label[for="lang-select"]').textContent = "Language";
     document.querySelector('.toggle-row > span').textContent = "Sound";
 
     resetRoundBtn.textContent = "🔄 Reset Round";
     resetAllBtn.textContent = "🗑️ Reset All";
     startGameBtn.textContent = "🎮 Start Game";
-
-    categoryPlaceholder.textContent = "Draw a category!";
 
     const opts = timerDurationSelect.options;
     opts[0].text = "5s (Very Fast)";
@@ -1169,6 +1407,13 @@ function translateUI() {
     const dOpts = difficultyFilterSelect.options;
     dOpts[0].text = "Easy only";
     dOpts[1].text = "All categories";
+
+    const wOpts = cardsToWinSelect.options;
+    wOpts[0].text = "1 card";
+    wOpts[1].text = "2 cards";
+    wOpts[2].text = "3 cards (Default)";
+    wOpts[3].text = "5 cards";
+    wOpts[4].text = "7 cards";
   }
 }
 
